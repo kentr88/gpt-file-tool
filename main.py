@@ -1,8 +1,10 @@
 from llama_cpp import Llama
-import itertools
-import threading
-import time
 from yaspin import yaspin
+
+try:
+    import readline
+except ImportError:
+    import pyreadline3 as readline
 
 
 llm = Llama(model_path="C:\\gemma-1.1-7b-it.Q4_K_M.gguf", verbose=False)
@@ -43,12 +45,26 @@ def main():
         print("No Bash code found.")
         return
 
-    print("options: e:execute, q:quit, r:retry, l:larger model, arrow key: edit")
-    print("Bash code:")
-    print("__________________________")
-    print("\n".join(filtered_lines))
-    print("enter option: ", end="")
-    option = input()
+    while True:
+        print("\nOptions: e: execute, q: quit, arrow keys: edit code")
+        print("Bash code:")
+        print("__________________________")
+        bash_code = "\n".join(filtered_lines)
+        print(bash_code)
+
+        print("Enter option (e/q) or edit the code using the arrow keys:")
+        edited_code = input("> ")
+
+        if edited_code.lower() == 'q':
+            print("Exiting...")
+            break
+        elif edited_code.lower() == 'e':
+            print("Executing code...")
+            break
+        else:
+            # Update the Bash code with the edited input
+            filtered_lines = edited_code.split("\n")
+            print("Code updated. You can edit again or choose an option.")
 
 
 
