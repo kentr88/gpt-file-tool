@@ -1,76 +1,69 @@
-from llama_cpp import Llama
-from yaspin import yaspin
-
-try:
-    import readline
-except ImportError:
-    import pyreadline3 as readline
+import os
+import yaml
+from config import Config
+from app import App
 
 
-llm = Llama(model_path="C:\\gemma-1.1-7b-it.Q4_K_M.gguf", verbose=False)
+# main class
+# handles config and command function map
+# handles user input and inital command processing
+# 
 
 
-def main():
-    print("Enter task: ", end="")
-    user_input = input()
-
-    with yaspin(text="Processing...", color="cyan") as spinner:
-        response = llm(f"Output only Bash code. {user_input}", max_tokens=100, temperature=0.3)
-        spinner.ok("✅")
+# const var
+CONFIG_DIR = os.path.abspath(os.path.dirname(__file__)) + "/config.yaml"
+SYSTEM = os.name
+MODELS = ["llama", "chatgpt", "gemini"]
+LANG = ["python", "bash"]
 
 
-    lines = response["choices"][0]["text"].split("\n")
-    # filter lines
-    
-    # only get lines within ```bash
-    start = False
-    filtered_lines = []
-    for line in lines:
-        if "```bash" in line:
-            start = True
-            continue
-        if "```" in line:
-            start = False
-            break
-        if start:
-            filtered_lines.append(line)
+class Main:
+    def __init__(self):
+        # get config
+        self.config = Config(CONFIG_DIR, LANG, MODELS)
+
+        # create app
+        app = App(self.config)
+
+        # specify commands
+        self.commands = {
+            'man': app.print_manual,
+            'manual': app.print_manual,
+            'help': app.print_manual,
+            'exit': app.exit,
+            'model': app.change_model_default,
+            'lang': app.change_lang_default,
+            'template': app.load_template
+        }
+
+        # add model commands
+        for model in MODELS:
+            self.commands[model] = self.run_certain_model
+        
+        # add lang commands
+        for lang in LANG:
+            self.commands[lang] = self.run_certain_lang
 
 
+        # execute main loop
+        self.main()
 
-    # remove empty lines
-    filtered_lines = list(filter(lambda x: x.strip() != "", filtered_lines))
-    
 
-    if len(filtered_lines) == 0:
-        print("No Bash code found.")
-        return
-
-    while True:
-        print("\nOptions: e: execute, q: quit, arrow keys: edit code")
-        print("Bash code:")
-        print("__________________________")
-        bash_code = "\n".join(filtered_lines)
-        print(bash_code)
-
-        print("Enter option (e/q) or edit the code using the arrow keys:")
-        edited_code = input("> ")
-
-        if edited_code.lower() == 'q':
-            print("Exiting...")
-            break
-        elif edited_code.lower() == 'e':
-            print("Executing code...")
-            break
+    # handles very first user input
+    # args: list of words
+    def processPrompt(self, args):
+        # man, template, exit/CTRL+C, help, model, lang, (default)
+        
+        # check if prompt exists in commands
+        prompt = args[0]
+        if prompt in self.commands:
+            # pass all args including prompt
+            self.commands[prompt](args)
         else:
-            # Update the Bash code with the edited input
-            filtered_lines = edited_code.split("\n")
-            print("Code updated. You can edit again or choose an option.")
+            # run default llm and lang
+            self.run_defaults(args)
 
 
-
-
-
-    
-
-if __name__ == "__main__":
-    main()
+            
+    def main():
+        # handle > and line input
